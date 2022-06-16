@@ -1,0 +1,313 @@
+<html>
+<head>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZDC27YGJ7V"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-ZDC27YGJ7V');
+  </script>
+  <meta charset="utf-8"/>
+  <link rel="stylesheet" href="css/purple.css" type="text/css"/>
+</head>
+<body>
+  <div class="main">
+    <div class="intro-row">
+      <div class="intro">
+        <a href="/"><h1>Ethan A.<span style="font-size:0.5em;">&nbsp;</span>Chi</h1></a>
+        <div class="intro-row-info">
+          <a href="research.html">research blog</a>
+          <a href="https://www.youtube.com/channel/UCvoL7sNhoh-HKGYCTp3JN3w">musical performances</a>
+          <!-- <a href="writing.html">projects</a> -->
+          <a href="https://scholar.google.com/citations?user=dRUwDFQAAAAJ&hl=en">google scholar</a>
+        </div>
+      </div>
+    </div>
+    <!-- <nav class="links">
+    <a href="research.html">research blog</a>
+    <a href="music.html">musical performances</a>
+    <a href="writing.html">projects</a>
+  </nav> -->
+  <div class="body blog" id="body">
+
+        <p><img src="img/image_0.png" alt="image alt text" class="head-img"></p>
+
+        <p class="caption">We projected head-dependent pairs from both English (light colors) and French (dark colors) into a syntactic space trained on solely English mBERT representations.
+      Both English and French head-dependent vectors cluster; dependencies of the same label in both English and French share the same cluster.
+       Although our method has no access to dependency labels, the dependencies exhibit cross-lingual clustering that largely agree with linguists’ categorizations.</i></p>
+
+        <p class="takeaway"><b>If you ask a deep neural network to read a large number of languages, does it share what it’s learned about sentence structure between different languages?</b></p>
+
+        <p>Deep neural language models like BERT have recently demonstrated a fascinating level of understanding of human language.
+      Multilingual versions of these models, like Multilingual BERT (mBERT), are able to understand a large number of languages simultaneously.
+      To what extent do these models share what they’ve learned between languages?  </p>
+
+        <p>Focusing on the syntax, or grammatical structure, of these languages, we show that Multilingual BERT is able to learn a general syntactic structure applicable to a variety of natural languages.
+     Additionally, we find evidence that mBERT learns cross-lingual syntactic categories like &quot;subject&quot; and “adverb”—categories that largely agree with traditional linguistic concepts of syntax!  Our results imply that simply by reading a large amount of text, mBERT is able to represent syntax—something fundamental to understanding language—in a way that seems to apply across many of the languages it comprehends.
+    </p>
+
+        <!-- <p>More specifically, we present the following:</p>
+
+        <ul>
+          <li><p>We apply the structural probe method of [Hewitt and Manning, 2019] to 10 languages, finding syntactic subspaces in a multilingual setting.
+    </p></li>
+          <li><p>Through zero-shot transfer experiments, we demonstrate that mBERT represents some syntactic features in syntactic subspaces that overlap between languages.
+    </p></li>
+          <li><p>Through an unsupervised method, we find that mBERT natively represents dependency clusters that largely overlap with the UD standard.
+    </p></li>
+        </ul> -->
+
+        <p>Our results are presented in the forthcoming ACL 2020 paper, <a href="https://arxiv.org/pdf/2005.04511">Finding Universal Grammatical Relations in Multilingual BERT</a>.
+      This post draws from the paper, which is joint work with John Hewitt and Chris Manning.
+      You can also find the code <a href="https://github.com/ethanachi/multilingual-probing-visualization">here</a>.
+    </p>
+
+        <p>If you’d like to skip the background and jump to the discussion of our methods, go <a href="#toc_3">here</a>.
+      Otherwise, read on!</p>
+
+        <h2 id="toc_1">Learning Languages</h2>
+
+        <p>Past childhood, humans usually learn a language by <em>comparison</em> to one we already speak.<a href="#footnote-1" class="footnote">[1]</a>
+          We naturally draw parallels between sentences with similar meanings—for example, after learning some French, one can work out that <i>Je vis le chat mignon</i> is essentially a word-for-word translation of <em>I see the cute cat</em>.
+          Importantly, humans draw parallels in <em>syntax</em>, or the way words are organized to form meaning; bilinguals know that <em>mignon</em> is an adjective which describes the noun <em>chat</em>, just as <em>cute</em> describes the noun <em>cat</em>—even though the words are in the opposite order between languages.
+    </p>
+
+        <p>How do we train a neural network to understand multiple languages at the same time?  One intuitive approach might be to equip the neural network with a multilingual dictionary and a list of rules to transfer between one language to another.
+      (For example, adjectives come before the noun in English but after the noun in Khmer.)  However, mirroring recent developments in monolingual neural networks, one more recent method is to give our neural network enormous amounts of data in multiple languages.
+      In this approach, we never provide even a single translation pair, much less a dictionary or grammar rules.
+    </p>
+
+        <p>Surprisingly, this trial by fire works!  A network trained this way, like Google’s <a href="https://github.com/google-research/bert/blob/master/multilingual.md">Multilingual BERT</a>, is able to understand a vast number of languages beyond what any human can handle, even a typologically divergent set ranging from English to Hindi to Indonesian.
+    </p>
+
+        <p>This raises an interesting question: how do these networks understand multiple languages at the same time? Do they learn each language separately, or do they draw parallels between the way syntax works in different languages?   </p>
+
+        <h2 id="toc_2">Knowing what it means to &quot;know&quot;</h2>
+
+        <p>First, let’s ask: what does it even mean for a neural network to &quot;understand&quot; a linguistic property?  </p>
+
+        <p>One way to evaluate this is through the network’s performance on a <em>downstream task</em>, such as a standard leaderboard like the <a href="https://gluebenchmark.com/">GLUE (General Language Understanding Evaluation) benchmark</a>.
+      By this metric, large models like BERT do pretty well!  However, although high performance numbers suggest in some sense that the model understands some aspects of language <em>generally speaking</em>, they conflate the evaluation of many different aspects of language, and it’s difficult to test specific hypotheses about the individual properties of our model.
+    </p>
+
+        <p  >Instead, we use a method known as <em>probing</em>.
+      The central idea is as follows: we feed linguistic data for which we know the property we’re interested in exploring (e.g. part-of-speech) through the network we want to probe.
+      Instead of looking at the predictions of the model themselves, for each sentence we feed through, we save the <i>hidden representations</i>, which one can think of as the model’s internal data structures.
+      We then train a <em>probe</em>—a secondary model—to recover the target property from these representations, akin to how a neuroscientist might read out emotions from a MRI scan of your brain.
+     </p>
+
+        <p id="toc_3">Probes are usually designed to be simple, to test what the neural network makes easily accessible.
+     intuitively, the harder we try to tease a linguistic property out of the representations, the less the representations themselves matter to your final results.
+      As an example, we might be able to build an extremely complex model to predict whether someone is seeing a cat, based on the raw data coming from the retina; however, this doesn’t mean that the retina itself intrinsically &quot;understands&quot; what a cat is.<a href="#footnote-2" class="footnote">[2]</a></p>
+
+        <h2>A Tale of Syntax and Subspaces</h2>
+
+        <p>So what form, exactly, do these hidden representations take?  The innards of a neural network like BERT represent each sentence as a series of real-valued vectors (in real life, these are 768-dimensional, but we’ve represented them as three-dimensional here):</p>
+
+        <img src="img/image_1.png" alt="image alt text" class="shrunk">
+        <p class="image-citation">Hewitt and Manning (2019)</p>
+
+        <p>A probe, then, is a model that maps from a word vector to some linguistic property of interest.
+     For something like part of speech, this might take the form of a 1-layer neural classifier which predicts a category (like noun or verb).
+      </p>
+
+        <p>But how do we evaluate whether a neural network knows something as nebulous as syntax, the way words and phrases are arranged to create meaning?  Linguists believe sentences are implicitly organized into <em>syntax trees</em>, which we generate mentally in order to produce a sentence.
+      Here’s an example of what that looks like:</p>
+
+        <p><img src="img/image_2.png" alt="image alt text" class="very-shrunk"></p>
+        <p class="caption">Syntax tree for French <b>Jean qui avait faim joue bien dans le jardin</b> (Jean, who was hungry, plays in the garden).</p>
+    </p>
+
+        <p>To probe whether BERT encodes a syntax tree internally, we apply the <em>structural probe</em> method [Hewitt and Manning, 2019].
+      This finds a linear transformation<a href="#footnote-3" class="footnote">[3]</a> such that the tree constructed by connecting each word to the word closest to it approximates a linguist’s idea of what the parse tree should look like.
+      This ends up looking like this:</p>
+
+        <p><img src="img/image_3.png" alt="image alt text" class="shrunk"></p>
+
+        <p>Intuitively, we can think of BERT vectors as lying in a 768-dimensional space; the structural probe tries to find a linear subspace of the BERT space which best recovers syntax trees.
+    </p>
+
+        <p>Does this work, you might ask?  Well, this certainly seems to be the case:</p>
+
+        <img src="img/image_4.png" alt="image alt text" class="shrunk">
+        <p class="image-citation"><a href="https://arxiv.org/abs/1906.02715">Coenen et al. (2019)</a></p>
+
+        <p>Hewitt and Manning apply this method only to monolingual English BERT; we apply their method to 10 other languages, finding that mBERT encodes syntax to various degrees in all of them.
+      Here’s a table of performance (measured in UUAS, or unlabeled undirected accuracy score) as graphed against the rank of the probe’s linear transformation:</p>
+
+        <p><img src="img/image_5.png" alt="image alt text" class="shrunk"></p>
+
+        <h3 id="toc_4">Probing for Cross-Lingual Syntax</h3>
+
+        <p>With this in mind, we can turn to the question with which we started this blog post: </p>
+
+        <p><strong><em>Does Multilingual BERT represent syntax similarly cross-lingually?</em></strong></p>
+
+        <p>To answer this, we train a structural probe to predict syntax from representations in one language—say, English—and evaluate it on another, like French.
+      If a probe trained on mBERT’s English representations performs well when evaluated on French data, this intuitively suggests that the way mBERT encodes English syntax is similar to the way it encodes French syntax.
+    </p>
+
+        <p>Does this work? In a word, basically:</p>
+
+        <p><img src="img/image_6.png" alt="image alt text"></p>
+        <p class="caption">Syntactic trees for a single English sentence generated by structural probes trained on English, French, and Indonesian data.
+          Black represents the reference syntactic tree as defined by a linguist.
+          The English structural probe is almost entirely able to replicate the syntactic tree, with one error;
+          the French probe finds most of the syntactic tree, while the Indonesian probe is able to recover the high-level structure but misses low-level details.
+        </p>
+
+        <p>Out of the 11 languages that we evaluate on, we find that probes trained on representations from one language are able to successfully recover syntax trees—to varying degrees—in data from another language.
+      Evaluated on two numerical metrics of parse tree accuracy, applying probes cross-lingually performs surprisingly well!
+      This performance suggests that <em>syntax is encoded similarly in mBERT representations across many different languages</em>.
+      </p>
+        <table>
+          <tr>
+            <td></td>
+            <td><b>UUAS</b></td>
+            <td><b>DSpr.</b></td>
+          </tr>
+          <tr>
+            <td>Best baseline</td>
+            <td>0%</td>
+            <td>0%</td>
+          </tr>
+          <tr>
+            <td>Transfer from best source language</td>
+            <td>62.3%</td>
+            <td>73.1%</td>
+          </tr>
+          <tr>
+            <td>Transfer from holdout subspace (trained on all languages other than eval)</td>
+            <td>70.5%</td>
+            <td>79%</td>
+          </tr>
+          <tr>
+            <td>Transfer from subspace trained on all languages (including eval)</td>
+            <td>88.0%</td>
+            <td>89.0%</td>
+          </tr>
+          <tr>
+            <td>Training on evaluation language directly</td>
+            <td>100%</td>
+            <td>100%</td>
+          </tr>
+        </table>
+
+        <p class="caption">Improvement for various transfer methods over best baseline, evaluated on two metrics: UUAS (unlabeled undirected accuracy score) and DSpr.
+     (Spearman correlation of tree distances).
+     Percent improvement is calculated with respect to the total possible improvement in recovering syntactic trees over baseline (as represented by in-language supervision.)</p>
+
+
+
+        <h2 id="toc_5">Finding Universal Grammatical Relations in mBERT</h2>
+
+        <p>We’ve shown that cross-lingual syntax exists—can we visualize it?</p>
+
+        <p>Recall that the structural probe works by finding a linear subspace optimized to encode syntax trees.
+      Intuitively, this <em>syntactic subspace</em> might focus on syntactic aspects of mBERT’s representations.
+      Can we visualize words in this subspace and get a first-hand view of how mBERT represents syntax?</p>
+
+        <p>One idea is to focus on the edges of our syntactic tree, or <em>head-dependent pairs</em>.
+     For example, below, <em>was</em> is the head of the dependent <em>chef</em>:</p>
+
+        <p><img src="img/image_7.png" alt="image alt text" class="shrunk"></p>
+
+        <p>Let’s try to visualize these vectors in the syntactic subspace and see what happens!  Define the <em>head-dependent</em> vector as the vector between the head and the dependent in the syntactic subspace:</p>
+
+        <img src="/img/math.png" class="very-shrunk"/>
+        <br/>
+
+        <p>We do this for every head-dependent pair in every sentence in our corpus, then visualize the resulting 32-dimensional vectors in two dimensions using t-SNE, a dimensionality reduction algorithm.
+      The results are striking: the dependencies naturally separate into clusters, whose identities largely overlap with the categories that linguists believe are fundamental to language!  In the image below, we’ve highlighted the clusters with dependency labels from Universal Dependencies, like <tt>amod</tt> (adjective modifying a noun) and <tt>conj</tt> (two clauses joined by a coordinating conjunction like <em>and</em>, <em>or</em>):</p>
+
+        <p><img src="img/image_8.png" alt="image alt text" class="shrunk"></p>
+
+        <p>Importantly, these categories are <strong>multilingual</strong>.
+     In the above diagram, we’ve projected head-dependent pairs from both English (light colors) and French (dark colors) into a syntactic space trained on solely English mBERT representations.
+      We see that French head-dependent vectors cluster as well, and that dependencies with the same label in both English and French share the same cluster.
+    </p>
+
+        <h2 id="toc_6">Freedom from Human-Chosen Labels</h2>
+
+        <p>The fact that BERT &quot;knows&quot; dependency labels is nothing new; previous studies have shown high accuracy in recovering dependency labels from BERT embeddings.
+      So what’s special about our method?</p>
+
+        <p>Training a probe successfully demonstrates that we can map from mBERT’s representations to a standard set of dependency category labels.
+      But because our probe needs supervision on a labeled dataset, we’re limited to demonstrating the existence of a mapping to human-generated labels.
+     In other words, probes make it difficult to gain insight into the categories drawn by mBERT itself.
+    </p>
+
+        <p>By contrast, the structural probe never receives information about what humans think dependency label categories should look like.
+     Because we only ever pass in head-dependent pairs, rather than the category labels associated with these pairs, our method is free from human category labels.
+     Instead, the clusters that emerge from the data are a view into mBERT’s <i>innate dependency label representations</i>.<a class="footnote" href="#footnote-4">[4]</a>
+
+        <p>For more work on the <em>latent</em> linguistic ontology of BERT, see: <a href="https://arxiv.org/abs/2004.14513">Michael et al, 2020</a> and <a href="%5Bhttps://arxiv.org/pdf/2004.14620.pdf%5D(https://arxiv.org/pdf/2004.14620.pdf">Limisiewicz et al.</a>.</p>
+
+        <h2 id="toc_7">Analyzing mBERT’s Internal Representations</h2>
+
+        <p>Taking a closer look, what can we discover about how mBERT categorizes head-dependency relations, as compared to human labels? Our results show that mBERT draws slightly different distinctions from Universal Dependencies.
+      Some are linguistically valid distinctions not distinguished by the UD standards, while others are more influenced by word order, separating relations that most linguists would group together.
+      Here’s a brief overview:</p>
+
+        <p><img src="img/image_9.png" alt="image alt text"></p>
+
+        <p class="caption">t-SNE visualization of 100,000 syntactic difference vectors projected into the cross-lingual syntactic subspace of Multilingual BERT.
+    We exclude <em>punct</em> and visualize the top 11 dependencies remaining, which are collectively responsible for 79.36% of the dependencies in our dataset.
+    Clusters of interest highlighted in yellow; linguistically interesting clusters labeled.</p>
+
+        <ul>
+          <li><p><strong>Adjectives:</strong> We find that mBERT breaks adjectives into two categories: prenominal adjectives in cluster (b) (e.g. Chinese <b>獨特</b>的地理) and postnominal adjectives in cluster (u) (e.g. French <i>applications <b>domestiques</b></i>).</p></li>
+          <li><p><strong>Nominal arguments:</strong> mBERT maintains the UD distinction between subject and object.
+      However, indirect objects cluster with direct objects; other adjuncts cluster with subjects if near the beginning of a sentence and obj otherwise.
+      This suggests that mBERT categorizes nominal arguments into pre-verbal and post-verbal categories.
+    </p></li>
+          <li><p><strong>Relative clauses:</strong> In the languages in our dataset, there are two major ways of forming relative clauses.
+     Relative pronouns (e.g. English <i>the man <b>who</b> is hungry</i>) are classed by Universal Dependencies as being an <tt>nsubj</tt> dependent,
+     while subordinating markers (e.g. English <i>I know <b>that</b> she saw me</i>) are classed as the dependent of a <tt>mark</tt> relation.
+     However, mBERT groups both of these relations together, clustering them distinctly from most nsubj and mark relations.
+     </p></li>
+          <li><p><strong>Determiners:</strong> The linguistic category of determiners (det) is split into definite articles (i), indefinite articles (e), possessives (f), and demonstratives (g).
+     Sentence-initial definite articles (k) cluster separately from other definite articles (j).
+     </p></li>
+          <li><p><strong>Expletive subjects</strong> Just as in UD, expletive subjects, or third person pronouns with no syntactic meaning (e.
+    g English <i><b>It</b> is cold</i>, French <i><b>Il</b> faudrait</i>, Indonesian </i><b>Yang</b> menjadi masalah kemudian</i>), cluster separately (k) from other nsubj relations (small cluster in the bottom left).
+    </p></li>
+        </ul>
+
+        <h2 id="toc_8">Conclusion</h2>
+
+        <p>In this work, we’ve found that BERT shares some of the ways it represents syntax between its internal representations of different languages.
+      We’ve provided evidence that mBERT learns natural syntactic categories that overlap cross-lingually.
+      Interestingly, we also find evidence that these categories largely agree with traditional linguistic concepts of syntax.
+      </p>
+
+        <p>Excitingly, our methods allow us to examine fine-grained syntactic categories native to mBERT.
+      By removing assumptions on what the ontology of syntactic relations should look like, we discover that mBERT’s internal representations innately share significant overlap with linguists’ idea of what syntax looks like.
+      However, there are also some interesting differences between the two, the nature of which is definitely worth further investigation!</p>
+
+        <p>If you’d like to run some tests or generate some visualizations of your own, please head on over to the <a href="https://github.com/ethanachi/multilingual-probing-visualization">multilingual-probing-visualization codebase</a>!</p>
+
+        <p>Finally, I’m deeply grateful to John Hewitt and Chris Manning, as well as members of the Stanford NLP group for their advice, including but not limited to: Erik Jones, Sebastian Schuster, and Chris Donahue.
+      Many thanks also to John Hewitt and Dylan Losey for reading over the draft of this blog post, and to Mohammad Rasooli for advice on Farsi labels in the original paper.
+    </p>
+
+    <hr/>
+
+      <h3>Footnotes</h3>
+
+      <ol class="footnotes">
+        <li id="footnote-1">For a linguistic perspective (specifically, in the field of second-language acquisition), see <a href="https://www.tandfonline.com/doi/abs/10.1080/07908319509525193">Cook (1995)</a>.
+      <li id="footnote-2">This definition is a general overview and leaves some important questions.
+     How exactly, for instance, do we evaluate the complexity of our probe? Relatedly, how much of the performance improvement is due to the model, and how much is due to the probe itself?
+     For more work on this, see <a href="https://arxiv.org/abs/1909.03368">Hewitt and Liang (2019)</a> and <a href="https://arxiv.org/abs/2004.03061">Pimentel et al. (2020)</a>.</li>
+     <li id="footnote-3">A linear transformation on a vector is simply multiplication by a matrix: <i>h' = Ah</i></li>
+     <li id="footnote-4">Technically speaking, this is constrained to the assumption that BERT would choose the same head-dependent pairs as UD does.</li>
+      </ol>
+
+      </div>
+    </div>
+
+<script src="js/main.js" charset="utf-8"></script>
+</body>
+</html>

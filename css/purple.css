@@ -245,7 +245,7 @@ color: rgb(66, 142, 221);
 #leading-points p {
   display: flex;
   flex-direction: row;
-  font-size: 0.85em;
+  font-size: 0.9em;
 }
 
 
